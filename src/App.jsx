@@ -14,6 +14,7 @@ export default function App() {
   useEffect(() => {
     // Reference to your device's logs in Firebase
     const logsRef = ref(database, 'devices/ESP_001/logs')
+    let offlineTimeout; // Variable to hold our timer
     
     // Listen for changes automatically!
     const unsubscribe = onValue(logsRef, (snapshot) => {
@@ -36,14 +37,29 @@ export default function App() {
           hum: latestReading.hum || 0,
           moisture: latestReading.moisture || 0
         })
+        
+        // 1. Board just sent data! Set it to Online.
         setIsOnline(true)
+
+        // 2. Clear any existing timeout
+        if (offlineTimeout) clearTimeout(offlineTimeout);
+
+        // 3. Start a new 10-second countdown. 
+        // If the ESP32 doesn't send data before this finishes, mark it offline.
+        offlineTimeout = setTimeout(() => {
+          setIsOnline(false);
+        }, 10000); 
+
       } else {
         setIsOnline(false)
       }
     })
 
-    // Cleanup the listener when the component unmounts
-    return () => unsubscribe()
+    // Cleanup when component unmounts
+    return () => {
+      unsubscribe();
+      if (offlineTimeout) clearTimeout(offlineTimeout);
+    }
   }, [])
 
   return (
