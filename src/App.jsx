@@ -24,9 +24,25 @@ export default function App() {
         // Convert the Firebase object into an array and take the last 20 readings for the chart
         const dataArray = Object.keys(data).map(key => data[key])
         
+        // Grab the latest millis from the array to back-calculate real time
+        const currentRealTime = Date.now()
+        const latestMillis = parseInt(dataArray[dataArray.length - 1].time) || 0
+
         // Ensure we sort them by time (if your ESP32 pushes out of order)
         // Here we just assume they are inserted sequentially, so we slice the last 20
-        const recentData = dataArray.slice(-20)
+        const recentDataRaw = dataArray.slice(-20)
+
+        // Convert the ESP32 millis into real clock time
+        const recentData = recentDataRaw.map(item => {
+          const itemMillis = parseInt(item.time) || 0
+          const timeDiff = latestMillis - itemMillis
+          const itemDate = new Date(currentRealTime - timeDiff)
+          
+          return {
+            ...item,
+            time: itemDate.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' })
+          }
+        })
         
         // Grab the absolute latest reading for the metric cards
         const latestReading = recentData[recentData.length - 1]
@@ -144,7 +160,6 @@ export default function App() {
                     <XAxis 
                       dataKey="time" 
                       tick={{fontSize: 12}} 
-                      tickFormatter={(val) => val.toString().substring(0, 5)} // Shorten time label
                     />
                     <YAxis yAxisId="left" tick={{fontSize: 12}} />
                     <YAxis yAxisId="right" orientation="right" tick={{fontSize: 12}} />
